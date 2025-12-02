@@ -3,10 +3,33 @@ import { UserPreferences, TravelItinerary } from "../types";
 
 // Helper to ensure API Key exists
 const getApiKey = (): string => {
-  const key = process.env.API_KEY;
+  let key = '';
+
+  // 1. Try Vite environment (Standard for modern React)
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    // @ts-ignore
+    key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+  }
+
+  // 2. Try Node/CRA environment
+  if (!key && typeof process !== 'undefined' && process.env) {
+    key = process.env.REACT_APP_API_KEY || process.env.API_KEY || '';
+  }
+
+  // Diagnostic logging (Masked)
+  console.log("Environment Diagnostic:", {
+    hasImportMeta: typeof import.meta !== 'undefined',
+    // @ts-ignore
+    hasViteEnv: typeof import.meta !== 'undefined' && !!import.meta.env,
+    hasProcessEnv: typeof process !== 'undefined' && !!process.env,
+    keyFound: !!key,
+    keyPrefix: key ? key.substring(0, 4) + '...' : 'NONE'
+  });
+
   if (!key) {
-    console.error("API_KEY is missing from environment variables.");
-    throw new Error("API Key missing");
+    console.error("API Key missing. Tried: VITE_API_KEY, REACT_APP_API_KEY, API_KEY.");
+    throw new Error("Missing API Key. Please add VITE_API_KEY to your Netlify Environment Variables.");
   }
   return key;
 };
@@ -56,7 +79,13 @@ const itinerarySchema: Schema = {
 };
 
 export const generateItinerary = async (prefs: UserPreferences): Promise<TravelItinerary> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  let ai;
+  try {
+    const key = getApiKey();
+    ai = new GoogleGenAI({ apiKey: key });
+  } catch (e: any) {
+    throw e; // Re-throw key errors immediately
+  }
   
   const WEDDING_LOCATION = "Manuel Antonio / Quepos";
   const PREFERRED_REGIONS = prefs.preferredRegions.includes('AI_DECIDE') 
@@ -123,9 +152,13 @@ export const generateItinerary = async (prefs: UserPreferences): Promise<TravelI
     if (!text) throw new Error("No response from AI");
     
     return JSON.parse(text) as TravelItinerary;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw error;
+    // Pass through specific key errors
+    if (error.message.includes("API Key") || error.message.includes("VITE_API_KEY")) {
+      throw error;
+    }
+    throw new Error(`AI Generation failed: ${error.message || 'Unknown error'}`);
   }
 };
 

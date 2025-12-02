@@ -11,6 +11,7 @@ interface PlannerFormProps {
 
 export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIsLoading, onDirectionChange }) => {
   const [step, setStep] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<UserPreferences>({
     guestName: '',
     travelDirection: 'Pre-Wedding',
@@ -45,12 +46,10 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
       let newRegions = [...prev.preferredRegions];
       
       if (regionValue === 'AI_DECIDE') {
-        // If Surprise Me is clicked, clear others and select only this
         return { ...prev, preferredRegions: ['AI_DECIDE'] };
       } else {
-        // If a specific region is clicked
         if (newRegions.includes('AI_DECIDE')) {
-          newRegions = []; // Remove Surprise Me
+          newRegions = [];
         }
         
         if (newRegions.includes(regionValue)) {
@@ -59,10 +58,6 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
           newRegions.push(regionValue);
         }
 
-        // If user deselects everything, default back to Surprise Me
-        if (newRegions.length === 0) {
-           // Optional: default back or leave empty. Let's leave empty and validate on submit if needed.
-        }
         return { ...prev, preferredRegions: newRegions };
       }
     });
@@ -70,11 +65,17 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
 
   const handleSubmit = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const result = await generateItinerary(formData);
       onPlanGenerated(result, formData);
-    } catch (e) {
-      alert("Something went wrong generating your plan. Please try again.");
+    } catch (e: any) {
+      console.error("Submission Error:", e);
+      let msg = "Something went wrong generating your plan.";
+      if (e.message) {
+        msg = `Error: ${e.message}`;
+      }
+      setError(msg);
       setIsLoading(false);
     }
   };
@@ -309,6 +310,12 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
               Your itinerary will be optimized to {formData.travelDirection === 'Pre-Wedding' ? 'get you TO' : 'depart FROM'} Manuel Antonio smoothly.
             </p>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-bold">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-between items-center">
              <button 
