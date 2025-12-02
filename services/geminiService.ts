@@ -28,6 +28,62 @@ const getApiKey = (): string => {
   return key;
 };
 
+// Helper for delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper for making API requests with retry logic
+const generateWithRetry = async (ai: GoogleGenAI, params: any, retries = 3) => {
+  let lastError: any;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error: any) {
+      lastError = error;
+      // Check for 429 (Resource Exhausted) or 503 (Service Unavailable)
+      const errorMsg = error.message || '';
+      const isRateLimit = error.status === 429 || error.status === 503 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED');
+      
+      if (isRateLimit && attempt < retries) {
+        console.warn(`Attempt ${attempt} failed with rate limit. Retrying in ${attempt * 2}s...`);
+        // Exponential backoff: 2s, 4s, etc.
+        await delay(2000 * attempt);
+        continue;
+      }
+      // If not retryable or max retries reached, throw
+      throw error;
+    }
+  }
+  throw lastError;
+};
+
+// Helper to clean up error messages
+const formatError = (error: any): Error => {
+  console.error("Gemini API Error:", error);
+  let msg = error.message || 'Unknown error';
+
+  // Try to parse JSON error message if it looks like JSON
+  if (typeof msg === 'string' && msg.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed.error && parsed.error.message) {
+        msg = parsed.error.message;
+      }
+    } catch (e) {
+      // ignore parsing error
+    }
+  }
+
+  if (msg.includes("API Key") || msg.includes("VITE_API_KEY")) {
+    return new Error(msg);
+  }
+
+  if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+    return new Error("We are receiving too many requests right now (Google API Quota Limit). Please wait 1 minute and try again.");
+  }
+
+  return new Error(`AI Generation failed: ${msg}`);
+};
+
 // Define the schema for the itinerary response
 const itinerarySchema: Schema = {
   type: Type.OBJECT,
@@ -132,7 +188,7 @@ export const generateItinerary = async (prefs: UserPreferences): Promise<TravelI
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
@@ -147,12 +203,7 @@ export const generateItinerary = async (prefs: UserPreferences): Promise<TravelI
     
     return JSON.parse(text) as TravelItinerary;
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    // Pass through specific key errors
-    if (error.message.includes("API Key") || error.message.includes("VITE_API_KEY")) {
-      throw error;
-    }
-    throw new Error(`AI Generation failed: ${error.message || 'Unknown error'}`);
+    throw formatError(error);
   }
 };
 
@@ -161,7 +212,13 @@ export const reviseItinerary = async (
   userFeedback: string,
   originalPrefs: UserPreferences
 ): Promise<TravelItinerary> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  let ai;
+  try {
+    const key = getApiKey();
+    ai = new GoogleGenAI({ apiKey: key });
+  } catch (e: any) {
+    throw e;
+  }
 
   const prompt = `
     Act as a luxury travel concierge. You previously generated a travel itinerary for a wedding guest in Costa Rica.
@@ -191,7 +248,7 @@ export const reviseItinerary = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
@@ -206,7 +263,6 @@ export const reviseItinerary = async (
     
     return JSON.parse(text) as TravelItinerary;
   } catch (error) {
-    console.error("Gemini API Error during revision:", error);
-    throw error;
+    throw formatError(error);
   }
 };
