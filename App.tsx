@@ -2,19 +2,37 @@ import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { PlannerForm } from './components/PlannerForm';
 import { ItineraryResult } from './components/ItineraryResult';
-import { TravelItinerary } from './types';
+import { TravelItinerary, UserPreferences } from './types';
+import { reviseItinerary } from './services/geminiService';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
+  const [currentPrefs, setCurrentPrefs] = useState<UserPreferences | null>(null);
+  const [direction, setDirection] = useState<'Pre-Wedding' | 'Post-Wedding'>('Pre-Wedding');
 
-  const handlePlanGenerated = (data: TravelItinerary) => {
+  const handlePlanGenerated = (data: TravelItinerary, prefs: UserPreferences) => {
     setItinerary(data);
+    setCurrentPrefs(prefs);
     setLoading(false);
+  };
+
+  const handleRevision = async (feedback: string) => {
+    if (!itinerary || !currentPrefs) return;
+    setLoading(true);
+    try {
+      const newItinerary = await reviseItinerary(itinerary, feedback, currentPrefs);
+      setItinerary(newItinerary);
+    } catch (e) {
+      alert("Could not update itinerary. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reset = () => {
     setItinerary(null);
+    setCurrentPrefs(null);
     setLoading(false);
   };
 
@@ -36,13 +54,17 @@ const App: React.FC = () => {
               <span className="text-jungle-600 font-bold tracking-[0.2em] text-xs uppercase mb-3 block">Costa Rica | March 2027</span>
               <h1 className="text-4xl md:text-6xl font-serif text-jungle-900 mb-6 leading-tight">
                 Design Your Perfect<br/> 
-                <span className="italic text-jungle-500">Pre-Wedding</span> Escape
+                <span className="italic text-jungle-500">{direction}</span> Escape
               </h1>
               <p className="text-gray-600 text-lg">
                 Join us in paradise. Whether you're here to surf, relax, or explore the rainforest, let us create a custom itinerary for your trip surrounding the big day.
               </p>
             </div>
-            <PlannerForm onPlanGenerated={handlePlanGenerated} setIsLoading={setLoading} />
+            <PlannerForm 
+              onPlanGenerated={handlePlanGenerated} 
+              setIsLoading={setLoading} 
+              onDirectionChange={setDirection}
+            />
           </div>
         )}
 
@@ -50,12 +72,18 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center text-center animate-pulse space-y-6">
             <div className="w-24 h-24 rounded-full border-4 border-jungle-100 border-t-jungle-500 animate-spin"></div>
             <h2 className="text-2xl font-serif text-jungle-800">Consulting the Concierge...</h2>
-            <p className="text-gray-500">Checking availability for March 2027</p>
+            <p className="text-gray-500">
+               {itinerary ? "Refining your itinerary based on feedback..." : "Checking availability for March 2027"}
+            </p>
           </div>
         )}
 
         {itinerary && !loading && (
-          <ItineraryResult itinerary={itinerary} onReset={reset} />
+          <ItineraryResult 
+            itinerary={itinerary} 
+            onReset={reset} 
+            onRevise={handleRevision}
+          />
         )}
         
       </main>

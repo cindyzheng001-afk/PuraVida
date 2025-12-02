@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { UserPreferences, TripVibe } from '../types';
+import { UserPreferences, TripVibe, TravelItinerary } from '../types';
 import { VIBE_OPTIONS, ACTIVITY_OPTIONS, TRAVEL_DIRECTION_OPTIONS, BUDGET_OPTIONS, PARTY_OPTIONS, REGION_OPTIONS } from '../constants';
 import { generateItinerary } from '../services/geminiService';
 
 interface PlannerFormProps {
-  onPlanGenerated: (data: any) => void;
+  onPlanGenerated: (data: TravelItinerary, prefs: UserPreferences) => void;
   setIsLoading: (loading: boolean) => void;
+  onDirectionChange: (direction: 'Pre-Wedding' | 'Post-Wedding') => void;
 }
 
-export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIsLoading }) => {
+export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIsLoading, onDirectionChange }) => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<UserPreferences>({
     guestName: '',
@@ -58,8 +59,10 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
           newRegions.push(regionValue);
         }
 
-        // If user deselects everything, default back to Surprise Me? 
-        // Or just let it be empty and validate later. Let's default to empty array.
+        // If user deselects everything, default back to Surprise Me
+        if (newRegions.length === 0) {
+           // Optional: default back or leave empty. Let's leave empty and validate on submit if needed.
+        }
         return { ...prev, preferredRegions: newRegions };
       }
     });
@@ -69,7 +72,7 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
     setIsLoading(true);
     try {
       const result = await generateItinerary(formData);
-      onPlanGenerated(result);
+      onPlanGenerated(result, formData);
     } catch (e) {
       alert("Something went wrong generating your plan. Please try again.");
       setIsLoading(false);
@@ -121,7 +124,11 @@ export const PlannerForm: React.FC<PlannerFormProps> = ({ onPlanGenerated, setIs
                 {TRAVEL_DIRECTION_OPTIONS.map(opt => (
                    <button
                     key={opt.value}
-                    onClick={() => setFormData({...formData, travelDirection: opt.value as any})}
+                    onClick={() => {
+                      const newVal = opt.value as 'Pre-Wedding' | 'Post-Wedding';
+                      setFormData({...formData, travelDirection: newVal});
+                      onDirectionChange(newVal);
+                    }}
                     className={`p-4 rounded-xl border-2 text-left transition duration-200 flex items-center gap-3 ${
                       formData.travelDirection === opt.value
                       ? 'border-jungle-500 bg-jungle-50 text-jungle-900'

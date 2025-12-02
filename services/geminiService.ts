@@ -128,3 +128,58 @@ export const generateItinerary = async (prefs: UserPreferences): Promise<TravelI
     throw error;
   }
 };
+
+export const reviseItinerary = async (
+  currentItinerary: TravelItinerary,
+  userFeedback: string,
+  originalPrefs: UserPreferences
+): Promise<TravelItinerary> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+
+  const prompt = `
+    Act as a luxury travel concierge. You previously generated a travel itinerary for a wedding guest in Costa Rica.
+    The user wants to make changes to the existing itinerary.
+
+    ORIGINAL PREFERENCES:
+    - Guest: ${originalPrefs.guestName}
+    - Region: ${originalPrefs.preferredRegions.join(", ")}
+    - Activities: ${originalPrefs.activities.join(", ")}
+    - Vibe: ${originalPrefs.vibe.join(", ")}
+    - Budget: ${originalPrefs.budgetLevel}
+
+    CURRENT ITINERARY SUMMARY:
+    "${currentItinerary.summary}"
+    (Currently visiting: ${currentItinerary.accommodations.map(a => a.area).join(", ")})
+
+    USER REQUEST FOR CHANGES:
+    "${userFeedback}"
+
+    TASK:
+    Regenerate the ENTIRE itinerary JSON to address the user's feedback.
+    - If they ask to change location, change the schedule and accommodations accordingly.
+    - If they ask for more/less activity, adjust the schedule.
+    - Keep the wedding logistics accurate (Manuel Antonio) based on the original direction (${originalPrefs.travelDirection}).
+    
+    Output strictly valid JSON matching the itinerary schema.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: itinerarySchema,
+        temperature: 0.7,
+      },
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No response from AI");
+    
+    return JSON.parse(text) as TravelItinerary;
+  } catch (error) {
+    console.error("Gemini API Error during revision:", error);
+    throw error;
+  }
+};

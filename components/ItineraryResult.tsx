@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TravelItinerary, DailyPlan } from '../types';
 
 interface ItineraryResultProps {
   itinerary: TravelItinerary;
   onReset: () => void;
+  onRevise: (feedback: string) => void;
 }
 
 const DayCard: React.FC<{ plan: DailyPlan }> = ({ plan }) => (
@@ -29,7 +30,16 @@ const DayCard: React.FC<{ plan: DailyPlan }> = ({ plan }) => (
   </div>
 );
 
-export const ItineraryResult: React.FC<ItineraryResultProps> = ({ itinerary, onReset }) => {
+export const ItineraryResult: React.FC<ItineraryResultProps> = ({ itinerary, onReset, onRevise }) => {
+  const [feedback, setFeedback] = useState('');
+
+  const handleRevisionSubmit = () => {
+    if (feedback.trim()) {
+      onRevise(feedback);
+      setFeedback(''); // Clear input after submit
+    }
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-8 animate-fade-in-up pb-20">
       
@@ -107,6 +117,28 @@ export const ItineraryResult: React.FC<ItineraryResultProps> = ({ itinerary, onR
             </button>
         </div>
       </div>
+      
+      {/* Revision Section */}
+      <div className="bg-gradient-to-br from-white to-jungle-50 rounded-3xl p-8 shadow-xl border border-jungle-100">
+        <h3 className="text-2xl font-serif text-jungle-900 mb-2">Want to tweak this plan?</h3>
+        <p className="text-gray-600 mb-4 text-sm">Tell us what you'd like to change (e.g., "Add more beach time", "Find cheaper hotels", "I'd prefer more hiking")</p>
+        <div className="flex flex-col md:flex-row gap-4">
+          <textarea 
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="Type your changes here..."
+            className="flex-grow p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-jungle-400 focus:outline-none min-h-[100px] text-gray-700"
+          />
+          <button 
+             onClick={handleRevisionSubmit}
+             disabled={!feedback.trim()}
+             className="px-8 py-4 bg-jungle-600 text-white rounded-xl font-bold shadow-md hover:bg-jungle-700 transition disabled:opacity-50 disabled:cursor-not-allowed md:self-end h-min whitespace-nowrap"
+          >
+            Update Plan
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 };
