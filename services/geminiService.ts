@@ -17,18 +17,7 @@ const getApiKey = (): string => {
     key = process.env.REACT_APP_API_KEY || process.env.API_KEY || '';
   }
 
-  // Diagnostic logging (Masked)
-  console.log("Environment Diagnostic:", {
-    hasImportMeta: typeof import.meta !== 'undefined',
-    // @ts-ignore
-    hasViteEnv: typeof import.meta !== 'undefined' && !!import.meta.env,
-    hasProcessEnv: typeof process !== 'undefined' && !!process.env,
-    keyFound: !!key,
-    keyPrefix: key ? key.substring(0, 4) + '...' : 'NONE'
-  });
-
   if (!key) {
-    console.error("API Key missing. Tried: VITE_API_KEY, REACT_APP_API_KEY, API_KEY.");
     throw new Error("Missing API Key. Please add VITE_API_KEY to your Netlify Environment Variables.");
   }
   return key;
