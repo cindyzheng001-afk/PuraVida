@@ -39,14 +39,21 @@ const generateWithRetry = async (ai: GoogleGenAI, params: any, retries = 3) => {
       return await ai.models.generateContent(params);
     } catch (error: any) {
       lastError = error;
+      const errorMsg = JSON.stringify(error) || '';
+      
       // Check for 429 (Resource Exhausted) or 503 (Service Unavailable)
-      const errorMsg = error.message || '';
-      const isRateLimit = error.status === 429 || error.status === 503 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED');
+      const isRateLimit = 
+        error.status === 429 || 
+        error.status === 503 || 
+        errorMsg.includes('429') || 
+        errorMsg.includes('RESOURCE_EXHAUSTED') ||
+        errorMsg.includes('quota');
       
       if (isRateLimit && attempt < retries) {
-        console.warn(`Attempt ${attempt} failed with rate limit. Retrying in ${attempt * 2}s...`);
-        // Exponential backoff: 2s, 4s, etc.
-        await delay(2000 * attempt);
+        // Wait longer (4s, 8s, 12s) to let the quota bucket refill
+        const waitTime = 4000 * attempt;
+        console.warn(`Attempt ${attempt} hit rate limit. Retrying in ${waitTime}ms...`);
+        await delay(waitTime);
         continue;
       }
       // If not retryable or max retries reached, throw
@@ -59,29 +66,45 @@ const generateWithRetry = async (ai: GoogleGenAI, params: any, retries = 3) => {
 // Helper to clean up error messages
 const formatError = (error: any): Error => {
   console.error("Gemini API Error:", error);
-  let msg = error.message || 'Unknown error';
+  
+  // 1. Get a string representation of the error
+  let msg = '';
+  if (typeof error === 'string') msg = error;
+  else if (error instanceof Error) msg = error.message;
+  else msg = JSON.stringify(error);
 
-  // Try to parse JSON error message if it looks like JSON
-  if (typeof msg === 'string' && msg.trim().startsWith('{')) {
+  // 2. Check for specific keywords (Case Insensitive)
+  const lowerMsg = msg.toLowerCase();
+
+  if (lowerMsg.includes("api key") || lowerMsg.includes("vite_api_key")) {
+    return new Error("API Key issue. Check Netlify settings.");
+  }
+
+  if (lowerMsg.includes("429") || lowerMsg.includes("quota") || lowerMsg.includes("resource_exhausted")) {
+    return new Error("System is busy (Rate Limit Reached). Please wait 30 seconds and try again.");
+  }
+
+  if (lowerMsg.includes("safety") || lowerMsg.includes("blocked")) {
+    return new Error("The AI couldn't generate this trip due to safety settings. Try changing your wording slightly.");
+  }
+
+  // 3. Fallback: Clean up JSON if possible
+  if (msg.trim().startsWith('{')) {
     try {
       const parsed = JSON.parse(msg);
       if (parsed.error && parsed.error.message) {
-        msg = parsed.error.message;
+         // Recursive check in case the inner message is the quota error
+         if (parsed.error.message.includes('quota') || parsed.error.message.includes('429')) {
+             return new Error("System is busy (Rate Limit Reached). Please wait 30 seconds and try again.");
+         }
+         return new Error(`Error: ${parsed.error.message}`);
       }
     } catch (e) {
       // ignore parsing error
     }
   }
 
-  if (msg.includes("API Key") || msg.includes("VITE_API_KEY")) {
-    return new Error(msg);
-  }
-
-  if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
-    return new Error("We are receiving too many requests right now (Google API Quota Limit). Please wait 1 minute and try again.");
-  }
-
-  return new Error(`AI Generation failed: ${msg}`);
+  return new Error(`AI Generation failed. Please try again.`);
 };
 
 // Define the schema for the itinerary response
