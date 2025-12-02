@@ -17,6 +17,11 @@ const getApiKey = (): string => {
     key = process.env.REACT_APP_API_KEY || process.env.API_KEY || '';
   }
 
+  // Clean up key (remove whitespace/quotes if present from copy-paste)
+  if (key) {
+    key = key.trim().replace(/^["']|["']$/g, '');
+  }
+
   if (!key) {
     throw new Error("Missing API Key. Please add VITE_API_KEY to your Netlify Environment Variables.");
   }
