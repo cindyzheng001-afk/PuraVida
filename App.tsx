@@ -48,8 +48,9 @@ const App: React.FC = () => {
 
       <main className="relative z-10 container mx-auto px-4 pt-24 pb-12 min-h-screen flex flex-col items-center justify-center">
         
-        {!itinerary && !loading && (
-          <div className="w-full flex flex-col items-center animate-fade-in-up">
+        {/* Landing & Form Section - Keep mounted until itinerary exists to preserve state */}
+        {!itinerary && (
+          <div className={`w-full flex flex-col items-center animate-fade-in-up ${loading ? 'hidden' : ''}`}>
             <div className="text-center mb-10 max-w-2xl">
               <span className="text-jungle-600 font-bold tracking-[0.2em] text-xs uppercase mb-3 block">Costa Rica | March 2027</span>
               <h1 className="text-4xl md:text-6xl font-serif text-jungle-900 mb-6 leading-tight">
