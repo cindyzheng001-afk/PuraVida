@@ -1,15 +1,16 @@
 import React from 'react';
+import { logoData } from './logoData';
 
 export const Header: React.FC = () => {
   return (
     <nav className="w-full py-6 px-4 flex justify-between items-center bg-transparent absolute top-0 z-50">
       <div className="flex items-center gap-3">
         <img 
-          src="/logo.png" 
+          src={logoData} 
           alt="AC Logo" 
           className="h-40 md:h-56 w-auto drop-shadow-sm"
           referrerPolicy="no-referrer"
-          onError={(e) => console.error("Logo failed to load at /logo.png", e)}
+          onError={(e) => console.error("Logo failed to load from base64", e)}
         />
       </div>
       <div className="hidden md:flex gap-6 text-jungle-900 font-sans text-sm tracking-widest uppercase">
