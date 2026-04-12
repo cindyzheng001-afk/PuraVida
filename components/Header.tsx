@@ -1,11 +1,12 @@
 import React from 'react';
+import logo from './logo.png';
 
 export const Header: React.FC = () => {
   return (
     <nav className="w-full py-6 px-4 flex justify-between items-center bg-transparent absolute top-0 z-50">
       <div className="flex items-center gap-3">
         <img 
-          src="/logo.png" 
+          src={logo} 
           alt="AC Logo" 
           className="h-40 md:h-56 w-auto drop-shadow-sm"
           referrerPolicy="no-referrer"
