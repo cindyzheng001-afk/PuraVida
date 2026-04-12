@@ -5,7 +5,7 @@ export const Header: React.FC = () => {
     <nav className="w-full py-6 px-4 flex justify-between items-center bg-transparent absolute top-0 z-50">
       <div className="flex items-center gap-3">
         <img 
-          src="/Untitled design (3).png" 
+          src="/logo.png" 
           alt="AC Logo" 
           className="h-40 md:h-56 w-auto drop-shadow-sm"
           referrerPolicy="no-referrer"
