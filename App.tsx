@@ -91,7 +91,7 @@ const App: React.FC = () => {
 
       {/* Simple Footer */}
       <footer className="w-full text-center py-6 text-gray-400 text-xs relative z-10">
-        <p>&copy; 2027 Wedding Planner App. Pura Vida.</p>
+        <p>&copy; 2027 Vacation Planner App. Pura Vida.</p>
       </footer>
     </div>
   );
